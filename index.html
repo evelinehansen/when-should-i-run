@@ -6,6 +6,8 @@
 <title>When should I run?</title>
 <meta name="description" content="Pick the best time to run based on the weather forecast, daylight and your daily schedule.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%234a6b6f'/%3E%3Ccircle cx='50' cy='50' r='30' fill='none' stroke='%23f4f3ef' stroke-width='6'/%3E%3Cline x1='50' y1='50' x2='50' y2='30' stroke='%23f4f3ef' stroke-width='7' stroke-linecap='round'/%3E%3Cline x1='50' y1='50' x2='65' y2='58' stroke='%23d9a441' stroke-width='7' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Run?">
 <style>
 @font-face {
   font-family: 'Hanken Grotesk';
@@ -365,6 +367,7 @@ const state = {
 
 /* ---------- small utils ---------- */
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const EPS = 0.01; // minutes — absorbs floating-point drift in schedule sums (run durations are fractional)
 const parseHM = s => { const [h, m] = String(s).split(':').map(Number); return h * 60 + (m || 0); };
 const fmtMin = m => { m = Math.round(m); const h = Math.floor(((m % 1440) + 1440) % 1440 / 60), mm = ((m % 60) + 60) % 60; return String(h).padStart(2,'0') + ':' + String(mm).padStart(2,'0'); };
 const parsePace = s => { const m = /^(\d{1,2}):(\d{2})$/.exec(String(s).trim()); return m ? (+m[1] * 60 + +m[2]) : null; }; // sec/km
@@ -567,7 +570,7 @@ function buildBlocks(cfg, ctx, runStart, travelPos) {
 function overlapBusy(s, e) {
   for (const b of state.busy) {
     const bs = parseHM(b.start), be = parseHM(b.end);
-    if (Math.max(s, bs) < Math.min(e, be)) return b.start + '–' + b.end;
+    if (Math.max(s, bs) < Math.min(e, be) - EPS) return b.start + '–' + b.end;
   }
   return null;
 }
@@ -596,11 +599,11 @@ function assemble(o, ctx, sun, dateStr, isToday, nowMin) {
   const eligible = o.eligible !== false;
   let feasible = eligible, feasReason = '';
   const earliest = parseHM(prefs.times.earliestStart);
-  if (feasible && startAll < 0) { feasible = false; feasReason = 'Too long to finish before the deadline — would start the previous day.'; }
-  if (feasible && startAll < earliest) { feasible = false; feasReason = 'Would mean getting going at ' + fmtMin(startAll) + ' — before your earliest start (' + prefs.times.earliestStart + ').'; }
-  if (feasible && isToday && startAll < nowMin) { feasible = false; feasReason = 'Already past — it is ' + fmtMin(nowMin) + ' now.'; }
-  if (feasible && o.arriveCheck && doneAll > parseHM(prefs.times.arriveWork)) { feasible = false; feasReason = 'Would not get you to work until ' + fmtMin(doneAll) + ' — past your ' + prefs.times.arriveWork + ' arrival.'; }
-  if (feasible && o.eveningCheck && doneAll > parseHM(prefs.times.doneBy)) { feasible = false; feasReason = 'Would not finish until ' + fmtMin(doneAll) + ' — past your ' + prefs.times.doneBy + ' cutoff.'; }
+  if (feasible && startAll < -EPS) { feasible = false; feasReason = 'Too long to finish before the deadline — would start the previous day.'; }
+  if (feasible && startAll < earliest - EPS) { feasible = false; feasReason = 'Would mean getting going at ' + fmtMin(startAll) + ' — before your earliest start (' + prefs.times.earliestStart + ').'; }
+  if (feasible && isToday && startAll < nowMin - EPS) { feasible = false; feasReason = 'Already past — it is ' + fmtMin(nowMin) + ' now.'; }
+  if (feasible && o.arriveCheck && doneAll > parseHM(prefs.times.arriveWork) + EPS) { feasible = false; feasReason = 'Would not get you to work until ' + fmtMin(doneAll) + ' — past your ' + prefs.times.arriveWork + ' arrival.'; }
+  if (feasible && o.eveningCheck && doneAll > parseHM(prefs.times.doneBy) + EPS) { feasible = false; feasReason = 'Would not finish until ' + fmtMin(doneAll) + ' — past your ' + prefs.times.doneBy + ' cutoff.'; }
   if (feasible) { const ob = overlapBusy(startAll, doneAll); if (ob) { feasible = false; feasReason = 'Overlaps your plan (' + ob + ').'; } }
   const bars = [
     { label: 'Daylight', val: sc.daylight }, { label: 'Temp', val: sc.temp },
@@ -663,7 +666,7 @@ function buildOptions() {
       const cfg = prefs.blocks.lunch;
       const probe = buildBlocks(cfg, ctx, 0, null);
       const active = (cfg.warmup ? T.warmup : 0) + R + probe.cool;
-      const elig = active <= T.lunchLimit;
+      const elig = active <= T.lunchLimit + EPS;
       const o = makeForward('lunch', 690 - probe.preDur, null, {
         eligible: elig,
         eligReason: 'Warm-up + run + cooldown is ' + Math.round(active) + ' min — over your ' + T.lunchLimit + ' min lunch limit.',
@@ -833,7 +836,7 @@ function renderPlan() {
 
   // date line
   const dow = new Date(state.date + 'T12:00:00').getDay();
-  const dayHint = dow === 0 ? '· long-run day' : (dow === 6 ? '· weekend' : '');
+  const dayHint = (dow === 0 || dow === 6) ? '· weekend' : '';
   const dateLabel = new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(state.date + 'T12:00:00'));
   const dl = sun.sunset - sun.sunrise;
   html += '<div class="dateline"><div class="dateline-day">' + dateLabel + '<span class="dayhint">' + dayHint + '</span></div>' +
@@ -957,7 +960,7 @@ function renderPackList(listId) {
     '<span class="mk">' + (c.done ? '✓' : '') + '</span><span class="lb">' + esc(c.label) + '</span></button>').join('');
   html += '</div>';
   html += '<div class="packrow">' +
-    '<input type="text" value="' + esc(state.newItem[listId]) + '" placeholder="Add item…" data-change="setNewItem" data-list="' + listId + '">' +
+    '<input type="text" value="' + esc(state.newItem[listId]) + '" placeholder="Add item…" data-change="setNewItem" data-enter="addItem" data-list="' + listId + '">' +
     '<button type="button" class="btn-small" data-action="addItem" data-list="' + listId + '">Add</button></div>';
   html += '<div class="sugg"><select data-change="addSuggestion" data-list="' + listId + '">' +
     '<option value="" selected disabled>Suggestions…</option>' +
@@ -1052,7 +1055,10 @@ const actions = {
   select(el) { state.selectedId = el.dataset.arg; render(); },
   togglePack(el) { const it = state.checklists[el.dataset.list][+el.dataset.arg]; it.done = !it.done; render(); },
   addItem(el) {
-    const id = el.dataset.list, v = state.newItem[id].trim();
+    const id = el.dataset.list;
+    // read the live input value — on Enter the change event may not have fired yet
+    const inp = document.querySelector('input[data-change=setNewItem][data-list="' + id + '"]');
+    const v = ((inp ? inp.value : state.newItem[id]) || '').trim();
     if (v) { state.checklists[id].push({ label: v, done: false }); state.newItem[id] = ''; render(); }
   },
   copyPlan() {
@@ -1126,7 +1132,14 @@ const changes = {
 
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-action]');
-  if (el && actions[el.dataset.action]) actions[el.dataset.action](el, e);
+  if (!el || !actions[el.dataset.action]) return;
+  // a click on a form control inside a selectable card is meant for the
+  // control (packing input, suggestions dropdown) — not for card selection
+  if (el.dataset.action === 'select') {
+    const ctl = e.target.closest('input,select,textarea,button,label');
+    if (ctl && ctl !== el) return;
+  }
+  actions[el.dataset.action](el, e);
 });
 document.addEventListener('change', e => {
   const el = e.target.closest('[data-change]');

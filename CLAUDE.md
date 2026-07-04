@@ -11,7 +11,14 @@ Pages; must stay mobile friendly.
   subsets) are embedded as base64 `@font-face` data URIs in the first
   `<style>` block. The only network calls allowed are to
   `api.open-meteo.com` (forecast) and `geocoding-api.open-meteo.com`
-  (city search).
+  (city search). One deliberate exception: `apple-touch-icon.png`
+  (180×180, sage `#8fa9ab` with a serif R) ships next to index.html
+  because iOS home-screen icons can't reliably use data URIs.
+- Schedule times are fractional minutes — every feasibility comparison
+  must use the `EPS` tolerance or exact-fit schedules get falsely flagged.
+- Option cards are click-to-select; the click delegation must keep
+  ignoring clicks on form controls nested inside a card (packing input,
+  suggestions dropdown), or those controls become unusable.
 - **Privacy.** No analytics, no cookies, nothing sent anywhere. User
   *preferences* persist in `localStorage` under key `wsir.prefs.v1`
   (this browser only). Daily inputs (date, distance, run type, preferred
