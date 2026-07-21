@@ -6,7 +6,7 @@
 <title>When should I run?</title>
 <meta name="description" content="Pick the best time to run based on the weather forecast, daylight and your daily schedule.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%234a6b6f'/%3E%3Ccircle cx='50' cy='50' r='30' fill='none' stroke='%23f4f3ef' stroke-width='6'/%3E%3Cline x1='50' y1='50' x2='50' y2='30' stroke='%23f4f3ef' stroke-width='7' stroke-linecap='round'/%3E%3Cline x1='50' y1='50' x2='65' y2='58' stroke='%23d9a441' stroke-width='7' stroke-linecap='round'/%3E%3C/svg%3E">
-<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icon.png">
 <meta name="apple-mobile-web-app-title" content="Run?">
 <style>
 @font-face {
@@ -80,6 +80,8 @@
   --mut:#8a8c82; --mut2:#a9a89f; --mut3:#b3b2a9; --soft:#6f7168; --soft2:#5a5c53;
   --teal:#4a6b6f; --sand:#a08f7a; --good:#6f8f6a; --mid:#b8925a; --bad:#b56a5e;
   --field:#faf9f6;
+  --steel-tint:#e9eef0;   /* pale blue-grey fill for selected controls */
+  --steel-ink:#31424c;    /* dark steel text on that fill */
   --mono:'IBM Plex Mono',ui-monospace,monospace;
   --sans:'Hanken Grotesk',system-ui,sans-serif;
   --serif:'Newsreader',serif;
@@ -113,10 +115,17 @@ button{cursor:pointer}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px}
 .controls{padding:18px 20px;display:flex;flex-wrap:wrap;gap:24px;align-items:flex-end;margin-bottom:24px}
 .ctl{display:flex;flex-direction:column;gap:6px}
-.inp{font:15px var(--sans);padding:8px 10px;border:1px solid var(--line2);border-radius:8px;background:var(--field)}
-.inp-mono{font:15px var(--mono)}
+/* every text/number/time input stays at 16px or iOS Safari zooms on focus */
+.inp{font:16px var(--sans);padding:8px 10px;border:1px solid var(--line2);border-radius:8px;background:var(--field)}
+.inp-mono{font:16px var(--mono)}
 .typebtn{padding:8px 13px;border-radius:8px;border:1px solid var(--line2);background:#fff;color:var(--soft2);font:500 13px var(--sans)}
-.typebtn.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.typebtn.on{
+  background:var(--steel-tint);
+  border-color:#5d707a;                    /* deep steel blue */
+  box-shadow:inset 0 0 0 1px #5d707a;      /* doubles the border with no layout shift */
+  color:var(--steel-ink);
+  font-weight:600;
+}
 .plans{padding:16px 20px;display:flex;flex-wrap:wrap;gap:26px;align-items:center;margin-bottom:26px}
 .chip-x{border:none;background:#ddd9cf;color:var(--soft);width:16px;height:16px;border-radius:50%;font-size:11px;line-height:1}
 .busychip{display:inline-flex;align-items:center;gap:6px;padding:5px 6px 5px 10px;background:#f0eee9;border-radius:20px;font:400 12px var(--mono);color:var(--soft)}
@@ -184,9 +193,9 @@ button{cursor:pointer}
 .packchip.done .mk{background:var(--good)}
 .packchip.done .lb{color:#8a8c82;text-decoration:line-through}
 .packrow{display:flex;gap:7px;margin-top:11px}
-.packrow input{flex:1;font:13px var(--sans);padding:6px 10px;border:1px solid var(--line2);border-radius:8px;background:var(--field)}
+.packrow input{flex:1;font:16px var(--sans);padding:6px 10px;border:1px solid var(--line2);border-radius:8px;background:var(--field)}
 .sugg{margin-top:9px;display:flex;align-items:center;gap:8px}
-.sugg select{font:13px var(--sans);padding:6px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--field);color:var(--soft2);max-width:100%}
+.sugg select{font:16px var(--sans);padding:6px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--field);color:var(--soft2);max-width:100%}
 
 /* hour strip */
 .hours{display:flex;gap:3px;overflow-x:auto;padding-bottom:8px;margin-bottom:28px}
@@ -362,6 +371,7 @@ const state = {
   },
   newItem: { commute: '', fromwork: '' },
   copied: false,
+  pendingRender: false, // a deferred re-render waiting on a picker to close
   locResults: null, locSearching: false, locError: null,
 };
 
@@ -807,9 +817,9 @@ function renderPlan() {
   html += '<div class="card plans">' +
     '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
       '<span class="klabel">Other plans</span>' +
-      '<input class="inp inp-mono" type="time" style="font-size:13px;padding:6px 8px" value="' + esc(state.busyStart) + '" data-change="setBusyStart">' +
+      '<input class="inp inp-mono" type="time" style="padding:6px 8px" value="' + esc(state.busyStart) + '" data-change="setBusyStart">' +
       '<span style="color:var(--mut2)">–</span>' +
-      '<input class="inp inp-mono" type="time" style="font-size:13px;padding:6px 8px" value="' + esc(state.busyEnd) + '" data-change="setBusyEnd">' +
+      '<input class="inp inp-mono" type="time" style="padding:6px 8px" value="' + esc(state.busyEnd) + '" data-change="setBusyEnd">' +
       '<button type="button" class="btn-small" data-action="addBusy">Add</button>' +
       state.busy.map((b, i) => '<span class="busychip">' + esc(b.start) + '–' + esc(b.end) +
         '<button type="button" class="chip-x" data-action="removeBusy" data-arg="' + i + '">×</button></span>').join('') +
@@ -1103,10 +1113,20 @@ const actions = {
   },
 };
 
+// iOS fires `change` on every wheel movement while a native date/time picker
+// is still open — re-rendering there swaps the input out and closes the picker
+// mid-scroll. On touch devices defer the re-render until the field is blurred
+// (the picker's Done button); pointer-precise devices re-render immediately.
+const COARSE = !!(window.matchMedia && window.matchMedia('(pointer:coarse)').matches);
+function renderAfterEdit(el) {
+  if (COARSE && document.activeElement === el) { state.pendingRender = true; return; }
+  render();
+}
+
 const changes = {
-  setDate(el) { state.date = el.value || state.date; state.selectedId = null; render(); },
+  setDate(el) { state.date = el.value || state.date; state.selectedId = null; renderAfterEdit(el); },
   setDistance(el) { state.distance = el.value; state.selectedId = null; render(); },
-  setPrefTime(el) { state.prefTime = el.value; state.selectedId = null; render(); },
+  setPrefTime(el) { state.prefTime = el.value; state.selectedId = null; renderAfterEdit(el); },
   setBusyStart(el) { state.busyStart = el.value; },
   setBusyEnd(el) { state.busyEnd = el.value; },
   setNewItem(el) { state.newItem[el.dataset.list] = el.value; },
@@ -1122,7 +1142,7 @@ const changes = {
     if (parsePace(v)) { prefs.paces[el.dataset.arg] = v; savePrefs(); }
     render();
   },
-  setTime(el) { if (el.value) { prefs.times[el.dataset.arg] = el.value; savePrefs(); } render(); },
+  setTime(el) { if (el.value) { prefs.times[el.dataset.arg] = el.value; savePrefs(); } renderAfterEdit(el); },
   setTimeNum(el) { const n = parseInt(el.value, 10); if (!isNaN(n) && n >= 0) { prefs.times[el.dataset.arg] = n; savePrefs(); } render(); },
   setThresh(el) { const n = parseInt(el.value, 10); if (!isNaN(n)) { prefs.thresholds[el.dataset.arg] = n; savePrefs(); } render(); },
   setCoolIntense(el) { prefs.cooldownIntenseOnly = el.checked; savePrefs(); render(); },
@@ -1144,6 +1164,12 @@ document.addEventListener('click', e => {
 document.addEventListener('change', e => {
   const el = e.target.closest('[data-change]');
   if (el && changes[el.dataset.change]) changes[el.dataset.change](el, e);
+});
+// the picker closed (Done, or a tap elsewhere) — safe to rebuild the DOM now
+document.addEventListener('focusout', () => {
+  if (!state.pendingRender) return;
+  state.pendingRender = false;
+  setTimeout(render, 0); // let the blur finish before the element is replaced
 });
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter') {
