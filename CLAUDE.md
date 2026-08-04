@@ -24,7 +24,7 @@ Pages; must stay mobile friendly.
   (this browser only). Daily inputs (date, distance, run type, preferred
   time, busy slots, packing lists) are deliberately never stored.
 - **Defaults must stay close to the owner's setup** (Oslo, work 08:00–16:00
-  with arrival by 08:30, 25 min commute, done by 19:00, easy/long 6:20/km and
+  with arrival by 08:00, 25 min commute, done by 19:00, easy/long 6:20/km and
   tempo/intervals/hills 6:00/km, cooldown 15 min for intense sessions only).
   New features should be additive and default-off or default-equivalent.
 
